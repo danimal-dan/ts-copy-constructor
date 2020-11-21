@@ -14,7 +14,6 @@ export class ConstructorInserter {
 
     async insert() {
         let activeDocument = this.activeDocument().uri;
-        
 
         if (activeDocument === undefined) {
             return;
@@ -23,30 +22,26 @@ export class ConstructorInserter {
         let declarations = await this.getDeclarations(activeDocument);
 
         // validate export exists
-        if (declarations.activeEditorFile.exports.length === 0) {
+        if (declarations.activeEditorFile.declarations.length === 0) {
             return;
         }
 
         // TODO: Verify cursor is inside class, if so, put the constructor there. Otherwise put it after lastProperty declaration
 
         // TODO: If constructor exists, ask user if they want to replace it or add a new one
-        if (declarations.constructorLineNumber === null) {
-            // TODO: Write copy constructor from declartions
-            this.insertConstructor(declarations);
-        } else {
-            this.insertConstructorProperty(declarations);
-        }
+        this.insertConstructor(declarations);
     }
 
     async getDeclarations(activeDocument: Uri): Promise<Declarations> {
         const activeDocumentPath = Uri.parse(activeDocument.toString().substring(0, activeDocument.toString().lastIndexOf("/")));
 
         // EXAMPLE OF PARSING DECLARATIONS OF ACTIVE DOCUMENT
-        const activeEditorParseResult = await this.parser.parseSource(this.activeDocument().getText());
+        const activeDocumentParseResult = await this.parser.parseSource(this.activeDocument().getText());
+        const cursorPosition = await this.activeEditor().selection;
 
-        const declarations = new Declarations(activeEditorParseResult);
+        const declarations = new Declarations(activeDocumentParseResult, cursorPosition);
         
-        for (const importDeclaration of activeEditorParseResult.imports) {
+        for (const importDeclaration of activeDocumentParseResult.imports) {
             if (importDeclaration.libraryName && RegexPatterns.RELATIVE_PATH.test(importDeclaration.libraryName)) {
                 const importedLibraryPath = Uri.joinPath(activeDocumentPath, importDeclaration.libraryName + '.ts');
                 console.info(importedLibraryPath);
@@ -159,133 +154,39 @@ export class ConstructorInserter {
             snippet = '';
         }
 
+        const classDeclaration = declarations.getClassDeclaration();
+
         snippet = this.getIndentation();
 
-        if (this.config('choosePropertyVisibility', false)) {
-            snippet += '${2|' + this.getVisibilityChoice(this.config('visibility', 'protected'))+'|}';
-        } else {
-            snippet += this.config('visibility', 'protected');
-        }
+        snippet += `constructor(opts?: Partial<${classDeclaration.name}>) {\n`;
 
-        snippet += ' \\$${1:property};\n\n' + this.getIndentation();
+        classDeclaration.properties.forEach(property => {
+            let indentLevel = 2;
+            if (property.isOptional) {
+                snippet += this.getIndentation(indentLevel++);
+                snippet += `if (opts?.${property.name} != null) {\n`;
+            }
+            
+            if (PropertyTypeUtil.isPrimitiveType(property.type ?? '')) {
+                snippet += this.getIndentation(indentLevel);
+                snippet += `this.${property.name} = opts.${property.name};\n`;
+            }
 
-        if (this.config('chooseConstructorVisibility', false)) {
-            snippet += '${3|' + this.getVisibilityChoice(this.config('constructorVisibility', 'public'))+'|}';
-        } else {
-            snippet += this.config('constructorVisibility', 'public');
-        }
-
-        snippet += ' function __construct(\\$${1:property})\n' +
-            this.getIndentation() + '{\n' +
-            this.getIndentation(2) + '\\$this->${1:property} = \\$${1:property};$0\n' +
-            this.getIndentation() + '}';
-
-        let nextLineOfInsertLine = this.activeEditor().document.lineAt(insertLine.lineNumber + 1);
-
-        // If insert line is class closing brace or insert line is empty and
-        // next line is not class closing brace then add one new line.
-        if (
-            insertLine.text.endsWith('}') ||
-            (insertLine.text === '' && ! nextLineOfInsertLine.text.endsWith('}'))
-        ) {
-            snippet += '\n';
-        }
-
-        if (insertLine.text !== '' && ! insertLine.text.endsWith('}')) {
-            //Insert line is not empty and next line is not class closing brace so add two new line.
-            snippet += '\n\n';
-        }
+            if (property.isOptional) {
+                snippet += this.getIndentation(--indentLevel);
+                snippet += `}\n`;
+            }
+        });
+        
+        snippet += '}';
 
         this.activeEditor().insertSnippet(
             new SnippetString(snippet)
         );
     }
 
-    async insertConstructorProperty(declarations: Declarations) {
-        this.gotoLine(declarations);
-
-        let snippet = this.getIndentation();
-
-        if (this.config('choosePropertyVisibility', false)) {
-            snippet += '${2|'+this.getVisibilityChoice(this.config('visibility', 'protected'))+'|}';
-        } else {
-            snippet += this.config('visibility', 'protected');
-        }
-
-        snippet += ' \\$${1:property};\n\n';
-
-        let constructorStartLineNumber = declarations.constructorRange?.start.line ?? 0;
-        let constructorLineText = this.activeEditor().document.getText(declarations.constructorRange);
-
-        if (constructorLineText.endsWith('/**')) {
-            snippet += await this.getConstructorDocblock(declarations.constructorRange);
-
-            let constructor = await this.getConstructorLine(declarations.constructorRange);
-
-            constructorStartLineNumber = constructor?.line ?? 0;
-            constructorLineText = constructor?.textLine ?? '';
-        }
-
-        // Split constructor arguments.
-        let constructor = constructorLineText.split(/\((.*?)\)/);
-
-        snippet += `${constructor[0]}(`;
-
-        // Escape all "$" signs of constructor arguments otherwise
-        // vscode will assume "$" sign is a snippet placeholder.
-        let previousArgs = constructor[1].replace(/\$/g, '\\$');
-
-        if (previousArgs.length !== 0)  {
-            // Add previous constructor arguments.
-            snippet += `${previousArgs}\, `;
-        }
-
-        snippet += '\\$\${1:property})';
-
-        let constructorClosingLine = this.activeEditor().document.lineAt(constructorStartLineNumber);
-
-        // Add all previous property assignments to the snippet.
-        for (let line = constructorStartLineNumber; line < (declarations.constructorClosingLineNumber ?? 0); line++) {
-            let propertyAssignment = this.activeEditor().document.lineAt(line + 1);
-
-            constructorClosingLine = propertyAssignment;
-
-            // Escape all "$" signs of property assignments.
-            snippet += '\n' + propertyAssignment.text.replace(/\$/g, '\\$');
-        }
-
-        // Slice constructor closing brace.
-        snippet = snippet.slice(0, -1);
-
-        snippet += this.getIndentation() + '\\$this->${1:property} = \\$${1:property};$0';
-        snippet += '\n' + this.getIndentation() +'}';
-
-        let nextLineOfConstructorClosing = this.activeEditor().document.lineAt(constructorClosingLine.lineNumber + 1).text;
-
-        // If there is no new line after constructor closing brace then append
-        // new line except if the next line is not class closing brace.
-        if (nextLineOfConstructorClosing !== '' && ! nextLineOfConstructorClosing.endsWith('}')) {
-            snippet += '\n';
-        }
-
-        let start = new Position(
-            declarations.constructorRange?.start.line ?? 0,
-            declarations.constructorRange?.start.character ?? 0
-        );
-
-        let end = new Position(
-            constructorClosingLine?.range.end.line ?? 0,
-            constructorClosingLine?.range.end.character ?? 0 
-        );
-
-        this.activeEditor().insertSnippet(
-            new SnippetString(snippet),
-            new Range(start, end)
-        );
-    }
-
     gotoLine(declarations: Declarations) {
-        let insertLineNumber = this.getInsertLine(declarations);
+        let insertLineNumber = declarations.cursorPosition.start.line;
 
         let insertLine = this.activeEditor().document.lineAt(insertLineNumber);
         this.activeEditor().revealRange(insertLine.range);
@@ -294,13 +195,6 @@ export class ConstructorInserter {
         this.activeEditor().selection = new Selection(newPosition, newPosition);
 
         return insertLine;
-    }
-
-    getInsertLine(declarations: Declarations): number {
-        // TODO: GET CURSOR
-        let lineNumber = (declarations.lastPropertyLineNumber ?? 0) + 2;
-
-        return ++lineNumber;
     }
 
     findPropertyLastLine(doc: TextDocument, line: number) {

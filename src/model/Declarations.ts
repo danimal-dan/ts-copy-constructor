@@ -1,5 +1,5 @@
-import { Range } from 'vscode';
-import { Declaration, File } from 'typescript-parser';
+import { Range, Selection } from 'vscode';
+import { ClassDeclaration, Declaration, File } from 'typescript-parser';
 
 export class Declarations {
   activeEditorFile: File;
@@ -8,8 +8,15 @@ export class Declarations {
   constructorLineNumber?: number;
   constructorRange?: Range;
   constructorClosingLineNumber?: number;
+  cursorPosition: Selection; 
 
-  constructor(activeEditorFile: File) {
+  constructor(activeEditorFile: File, cursorPosition: Selection) {
     this.activeEditorFile = activeEditorFile;
+    this.cursorPosition = cursorPosition;
+  }
+
+  getClassDeclaration(): ClassDeclaration {
+    const declaration = this.activeEditorFile.declarations[0];
+    return declaration as ClassDeclaration;
   }
 }
