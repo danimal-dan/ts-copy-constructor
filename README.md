@@ -6,6 +6,7 @@ This is the README for your extension "js-ts-copy-constructor-generator". After 
 
 - May want to enable as Code Actions: https://github.com/microsoft/vscode-extension-samples/tree/master/code-actions-sample
 - Completions may work as well: https://github.com/microsoft/vscode-extension-samples/tree/master/completions-sample
+- Typescript Parser? https://www.npmjs.com/package/typescript-parser
 
 ## Features
 

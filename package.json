@@ -57,5 +57,8 @@
     "ts-loader": "^8.0.3",
     "webpack": "^4.44.1",
     "webpack-cli": "^3.3.12"
+  },
+  "dependencies": {
+    "typescript-parser": "^2.6.1"
   }
 }

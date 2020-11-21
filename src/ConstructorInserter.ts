@@ -1,17 +1,20 @@
 import { window, workspace, Position, Range, Selection, SnippetString, TextDocument, TextEditor, Uri } from 'vscode';
 import { ClassProperty } from './model/ClassProperty';
 import { Declarations } from './model/Declarations';
-import { PropertyType } from './model/PropertyType';
 import { PropertyTypeUtil } from './util/PropertyTypeUtil';
 import { RegexPatterns } from './model/RegexPatterns';
+import { TypescriptParser } from 'typescript-parser';
 
-export class PropertyInserter {
+export class ConstructorInserter {
+    parser = new TypescriptParser();
+
     dispose() {
         // don't really know what should go here...
     }
 
     async insert() {
         let activeDocument = this.activeDocument().uri;
+        
 
         if (activeDocument === undefined) {
             return;
@@ -19,9 +22,12 @@ export class PropertyInserter {
 
         let declarations = await this.getDeclarations(activeDocument);
 
-        if (declarations.classLineNumber === null) {
+        // validate export exists
+        if (declarations.activeEditorFile.exports.length === 0) {
             return;
         }
+
+        // TODO: Verify cursor is inside class, if so, put the constructor there. Otherwise put it after lastProperty declaration
 
         // TODO: If constructor exists, ask user if they want to replace it or add a new one
         if (declarations.constructorLineNumber === null) {
@@ -33,54 +39,86 @@ export class PropertyInserter {
     }
 
     async getDeclarations(activeDocument: Uri): Promise<Declarations> {
-        const declarations = new Declarations();
-        let doc = await workspace.openTextDocument(activeDocument);
+        const activeDocumentPath = Uri.parse(activeDocument.toString().substring(0, activeDocument.toString().lastIndexOf("/")));
 
-        for (let line = 0; line < doc.lineCount; line++) {
-            let textLine = doc.lineAt(line).text.trim();
+        // EXAMPLE OF PARSING DECLARATIONS OF ACTIVE DOCUMENT
+        const activeEditorParseResult = await this.parser.parseSource(this.activeDocument().getText());
 
-            // is class definition
-            if (RegexPatterns.CLASS_DEFINITION_START.test(textLine)) {
-                declarations.className = this.extractClassNameFromText(textLine);
+        const declarations = new Declarations(activeEditorParseResult);
+        
+        for (const importDeclaration of activeEditorParseResult.imports) {
+            if (importDeclaration.libraryName && RegexPatterns.RELATIVE_PATH.test(importDeclaration.libraryName)) {
+                const importedLibraryPath = Uri.joinPath(activeDocumentPath, importDeclaration.libraryName + '.ts');
+                console.info(importedLibraryPath);
+                
+                const importedFile = await workspace.fs.readFile(importedLibraryPath);
+                
+                const importParseResult = await this.parser.parseSource(importedFile.toString());
+                console.info(importParseResult);
 
-                let lineNumber = line;
-
-                // If class closing brace isn't inline then increment lineNumber.
-                if (! textLine.endsWith('{')) {
-                    lineNumber++;
-                }
-
-                declarations.classLineNumber = lineNumber;
-            }
-
-            // isPropertyDefinition
-            if (
-                RegexPatterns.CLASS_PROPERTY.test(textLine) ||
-                RegexPatterns.STATIC_CLASS_PROPERTY.test(textLine)
-            ) {
-                const classPropertyDetails = this.extractClassPropertyDefinitionFromLine(textLine);
-                declarations.classProperties.push(classPropertyDetails);
-
-                declarations.lastPropertyLineNumber = this.findPropertyLastLine(doc, line);
-            }
-
-            // is constructor
-            if (/constructor/.test(textLine)) {
-                declarations.constructorLineNumber = line;
-
-                declarations.constructorRange = this.findConstructorRange(doc, line);
-            }
-
-            if (declarations.constructorLineNumber !== null && /[ \t].+}/.test(textLine)) {
-                declarations.constructorClosingLineNumber = line;
-
-                // If constructor is found then no need to parse anymore.
-                break;
+                importParseResult.declarations.forEach(declaration => {
+                    if (declaration.name) {
+                        declarations.importsDeclarationMap.set(declaration.name, declaration);
+                    }
+                });
+            } else {
+                console.info('ignoring import since it is not a relative path', importDeclaration);
             }
         }
 
         return declarations;
     }
+    
+    // OLD METHOD: Crawling through each line of the document, using regex to identify import pieces (class declaration, property declaration(s), constructor start and finish, etc.)
+    // async getDeclarations(activeDocument: Uri): Promise<Declarations> {
+    //     const declarations = new Declarations();
+    //     let doc = await workspace.openTextDocument(activeDocument);
+
+    //     for (let line = 0; line < doc.lineCount; line++) {
+    //         let textLine = doc.lineAt(line).text.trim();
+
+    //         // is class definition
+    //         if (RegexPatterns.CLASS_DEFINITION_START.test(textLine)) {
+    //             declarations.className = this.extractClassNameFromText(textLine);
+
+    //             let lineNumber = line;
+
+    //             // If class closing brace isn't inline then increment lineNumber.
+    //             if (! textLine.endsWith('{')) {
+    //                 lineNumber++;
+    //             }
+
+    //             declarations.classLineNumber = lineNumber;
+    //         }
+
+    //         // isPropertyDefinition
+    //         if (
+    //             RegexPatterns.CLASS_PROPERTY.test(textLine) ||
+    //             RegexPatterns.STATIC_CLASS_PROPERTY.test(textLine)
+    //         ) {
+    //             const classPropertyDetails = this.extractClassPropertyDefinitionFromLine(textLine);
+    //             declarations.classProperties.push(classPropertyDetails);
+
+    //             declarations.lastPropertyLineNumber = this.findPropertyLastLine(doc, line);
+    //         }
+
+    //         // is constructor
+    //         if (/constructor/.test(textLine)) {
+    //             declarations.constructorLineNumber = line;
+
+    //             declarations.constructorRange = this.findConstructorRange(doc, line);
+    //         }
+
+    //         if (declarations.constructorLineNumber !== null && /[ \t].+}/.test(textLine)) {
+    //             declarations.constructorClosingLineNumber = line;
+
+    //             // If constructor is found then no need to parse anymore.
+    //             break;
+    //         }
+    //     }
+
+    //     return declarations;
+    // }
 
     extractClassNameFromText(textLine: string): string | undefined {
         const matches = textLine.match(/class ([\w]([\w\d]+)?)/);
@@ -259,7 +297,8 @@ export class PropertyInserter {
     }
 
     getInsertLine(declarations: Declarations): number {
-        let lineNumber = (declarations.lastPropertyLineNumber || declarations.classLineNumber) ?? 0;
+        // TODO: GET CURSOR
+        let lineNumber = (declarations.lastPropertyLineNumber ?? 0) + 2;
 
         return ++lineNumber;
     }
