@@ -1,4 +1,4 @@
-# Typescript Copy Constructor Generator README
+# Typescript Copy Constructor
 
 Typescript Copy Constructor adds a command "Insert Copy Constructor" to VS Code. When called, it will generate the code for a copy constructor in the active class.
 
