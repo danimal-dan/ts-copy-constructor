@@ -88,6 +88,8 @@ export class Test {
 - [ ] Prompt to override existing constructor
 - [ ] Validate that activeEditor is a Typescript class, abort if it is not.
 - [ ] Find best insert location for constructor if cursor is in a weird place, e.g. outside of class definition.
+- [ ] Check for copy constructor for imported class before initializing via copy constructor
+  - In other words, the generated code expects there to be a copy constructor for any imported classes. This may not always be the case, and so needs to be handled.
 
 ## Planned Features
 
