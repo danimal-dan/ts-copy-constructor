@@ -95,7 +95,17 @@ export class Test {
 - [ ] Enable via Completions: https://github.com/microsoft/vscode-extension-samples/tree/master/completions-sample
 - [ ] Add support for ES6 Classes
 - [ ] Add settings to specify how to initialize certain types.
-  - Use case: A `moment` object, need to be `opts.date = moment(opts.date);`
+  - Use case: A `moment` object, should be initialized as `opts.date = moment(opts.date);`
+- [ ] Wider Enum support
+
+  - Currently, enums only work they are defined like:
+
+  ```typescript
+  export enum TestEnum {
+    Enum1 = "Enum1",
+    Enum2 = "Enum2",
+  }
+  ```
 
 ## Extension Settings
 
