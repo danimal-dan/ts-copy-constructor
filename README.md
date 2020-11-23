@@ -87,32 +87,28 @@ export class Test {
 
 _Coming Soon!_
 
-## Cases to Handle
+## TODOs
 
+- [ ] Add Unit Testing
+- [ ] Prepare for Release to VS Code Marketplace
 - [ ] Prompt to override existing constructor
 - [ ] Validate that activeEditor is a Typescript class, abort if it is not.
 - [ ] Find best insert location for constructor if cursor is in a weird place, e.g. outside of class definition.
 - [ ] Check for copy constructor for imported class before initializing via copy constructor
   - In other words, the generated code expects there to be a copy constructor for any imported classes. This may not always be the case, and so needs to be handled.
 - [ ] Wider Enum support
-  ```typescript
-  export enum TestEnum {
-    Enum1 = "Enum1",
-    Enum2 = "Enum2",
-  }
-  ```
+  - Currently, enums only work they are defined like:
+    ```typescript
+    export enum TestEnum {
+      Enum1 = "Enum1",
+      Enum2 = "Enum2",
+    }
+    ```
 - [ ] Add settings to specify how to initialize certain types.
   - Use case: A `moment` object, should be initialized as `opts.date = moment(opts.date);`
 - [ ] Add support for ES6 Classes
 - [ ] Enable via Code Actions: https://github.com/microsoft/vscode-extension-samples/tree/master/code-actions-sample
 - [ ] Enable via Completions: https://github.com/microsoft/vscode-extension-samples/tree/master/completions-sample
-
-## Other TODOs
-
-- [ ] Add Unit Testing
-- [ ] Prepare for Release to VS Code Marketplace
-
-  - Currently, enums only work they are defined like:
 
 ## Extension Settings
 
