@@ -1,9 +1,9 @@
 import { window, workspace, Position, Range, Selection, SnippetString, TextDocument, TextEditor, Uri } from 'vscode';
-import { ClassProperty } from './model/ClassProperty';
 import { Declarations } from './model/Declarations';
 import { PropertyTypeUtil } from './util/PropertyTypeUtil';
 import { RegexPatterns } from './model/RegexPatterns';
 import { TypescriptParser } from 'typescript-parser';
+import { PropertyType } from './model/PropertyType';
 
 export class ConstructorInserter {
     parser = new TypescriptParser();
@@ -63,86 +63,6 @@ export class ConstructorInserter {
 
         return declarations;
     }
-    
-    // OLD METHOD: Crawling through each line of the document, using regex to identify import pieces (class declaration, property declaration(s), constructor start and finish, etc.)
-    // async getDeclarations(activeDocument: Uri): Promise<Declarations> {
-    //     const declarations = new Declarations();
-    //     let doc = await workspace.openTextDocument(activeDocument);
-
-    //     for (let line = 0; line < doc.lineCount; line++) {
-    //         let textLine = doc.lineAt(line).text.trim();
-
-    //         // is class definition
-    //         if (RegexPatterns.CLASS_DEFINITION_START.test(textLine)) {
-    //             declarations.className = this.extractClassNameFromText(textLine);
-
-    //             let lineNumber = line;
-
-    //             // If class closing brace isn't inline then increment lineNumber.
-    //             if (! textLine.endsWith('{')) {
-    //                 lineNumber++;
-    //             }
-
-    //             declarations.classLineNumber = lineNumber;
-    //         }
-
-    //         // isPropertyDefinition
-    //         if (
-    //             RegexPatterns.CLASS_PROPERTY.test(textLine) ||
-    //             RegexPatterns.STATIC_CLASS_PROPERTY.test(textLine)
-    //         ) {
-    //             const classPropertyDetails = this.extractClassPropertyDefinitionFromLine(textLine);
-    //             declarations.classProperties.push(classPropertyDetails);
-
-    //             declarations.lastPropertyLineNumber = this.findPropertyLastLine(doc, line);
-    //         }
-
-    //         // is constructor
-    //         if (/constructor/.test(textLine)) {
-    //             declarations.constructorLineNumber = line;
-
-    //             declarations.constructorRange = this.findConstructorRange(doc, line);
-    //         }
-
-    //         if (declarations.constructorLineNumber !== null && /[ \t].+}/.test(textLine)) {
-    //             declarations.constructorClosingLineNumber = line;
-
-    //             // If constructor is found then no need to parse anymore.
-    //             break;
-    //         }
-    //     }
-
-    //     return declarations;
-    // }
-
-    extractClassNameFromText(textLine: string): string | undefined {
-        const matches = textLine.match(/class ([\w]([\w\d]+)?)/);
-
-        return matches?.[1];
-    }
-
-    extractClassPropertyDefinitionFromLine(textLine: string): ClassProperty {
-        let parsedLine = textLine.trim();
-        const isStatic = /^static.*/.test(parsedLine);
-        if (isStatic) {
-            parsedLine.replace(/^static/, '').trim();
-        }
-
-        const nameMatch = parsedLine.match(/^([\w][\w\d\_]+).*/);
-        const name = nameMatch?.[1] ?? '';
-
-        const typeMatch = parsedLine.match(/.*:\s?([\w][\w\d\_]+).*/);
-        const namedType = typeMatch?.[1];
-        let type;
-        if (namedType) {
-            type = PropertyTypeUtil.getPropertyTypeFromNamedType(namedType);
-        } else {
-            const defaultPropertyValue = parsedLine.match(/.*=\s?(.*);$/);
-            type = PropertyTypeUtil.inferTypeFromDefaultPropertyValue(defaultPropertyValue?.[1]);
-        }
-
-        return new ClassProperty(name, type, isStatic);
-    }
 
     insertConstructor(declarations: Declarations) {
         let insertLine = this.gotoLine(declarations);
@@ -162,22 +82,79 @@ export class ConstructorInserter {
 
         classDeclaration.properties.forEach(property => {
             let indentLevel = 2;
-            if (property.isOptional) {
-                snippet += this.getIndentation(indentLevel++);
-                snippet += `if (opts?.${property.name} != null) {\n`;
-            }
-            
-            if (PropertyTypeUtil.isPrimitiveType(property.type ?? '')) {
+            snippet += this.getIndentation(indentLevel++);
+            snippet += `if (opts?.${property.name} != null) {\n`;
+
+            const propertyType = PropertyTypeUtil.getPropertyTypeFromNamedType(property.type);
+
+            // Need different strategies here for different types
+            if (propertyType === PropertyType.PRIMITIVE) {
                 snippet += this.getIndentation(indentLevel);
                 snippet += `this.${property.name} = opts.${property.name};\n`;
+            } else if (propertyType === PropertyType.OBJECT) {
+                const objectDeclaration = declarations.importsDeclarationMap.get(property.type ?? '');
+                if (objectDeclaration === undefined) {
+                    console.info('object not imported, mapping directly to property ', property.name);
+                    snippet += this.getIndentation(indentLevel);
+                    snippet += `this.${property.name} = opts.${property.name};\n`;
+                } else if (PropertyTypeUtil.isDeclarationEnumType(objectDeclaration)) {
+                    // TODO: Check to see if enum and if the object is instatiable
+                    snippet += this.getIndentation(indentLevel++);
+                    snippet += `if (typeof opts?.${property.name} === 'string') {\n`;
+                    
+                    snippet += this.getIndentation(indentLevel);
+                    snippet += `this.${property.name} = ${property.type}[opts.${property.name}];\n`;
+
+                    snippet += this.getIndentation(--indentLevel);
+                    snippet += '} else {\n';
+
+                    snippet += this.getIndentation(++indentLevel);
+                    snippet += `this.${property.name} = opts.${property.name};\n`;
+
+                    snippet += this.getIndentation(--indentLevel);
+                    snippet += '}\n';
+                } else {
+                    snippet += this.getIndentation(indentLevel);
+                    snippet += `this.${property.name} = new ${property.type}(opts.${property.name});\n`;
+                }
+            } else if (propertyType === PropertyType.ARRAY) {
+                const arrayItemType = PropertyTypeUtil.extractItemTypeFromArrayType(property.type);
+                const arrayItemTypeDeclaration = declarations.importsDeclarationMap.get(arrayItemType ?? '');
+                if (arrayItemTypeDeclaration === undefined) {
+                    snippet += this.getIndentation(indentLevel);
+                    snippet += `this.${property.name} = [...opts.${property.name}];\n`;    
+                } else if (PropertyTypeUtil.isDeclarationEnumType(arrayItemTypeDeclaration)) {
+                    snippet += this.getIndentation(indentLevel);
+                    snippet += `this.${property.name} = opts.${property.name}.map(val => {\n`;
+                    
+                    snippet += this.getIndentation(++indentLevel);
+                    snippet += `if (typeof val === 'string') {\n`;
+                    
+                    snippet += this.getIndentation(++indentLevel);
+                    snippet += `return ${arrayItemType}[val];\n`;
+
+                    snippet += this.getIndentation(--indentLevel);
+                    snippet += '} else {\n';
+
+                    snippet += this.getIndentation(++indentLevel);
+                    snippet += `return val;\n`;
+
+                    snippet += this.getIndentation(--indentLevel);
+                    snippet += `}\n`;
+
+                    snippet += this.getIndentation(--indentLevel);
+                    snippet += '});\n';
+                } else {
+                    snippet += this.getIndentation(indentLevel);
+                    snippet += `this.${property.name} = opts.${property.name}.map(val => new ${arrayItemType}(val));\n`;
+                }
             }
 
-            if (property.isOptional) {
-                snippet += this.getIndentation(--indentLevel);
-                snippet += `}\n`;
-            }
+            snippet += this.getIndentation(--indentLevel);
+            snippet += `}\n`;
         });
         
+        snippet += this.getIndentation();
         snippet += '}';
 
         this.activeEditor().insertSnippet(
@@ -195,69 +172,6 @@ export class ConstructorInserter {
         this.activeEditor().selection = new Selection(newPosition, newPosition);
 
         return insertLine;
-    }
-
-    findPropertyLastLine(doc: TextDocument, line: number) {
-        for (line; line < doc.lineCount; line++) {
-            let textLine = doc.lineAt(line).text;
-
-            if (textLine.endsWith(';')) {
-                return line;
-            }
-        }
-    }
-
-    constructorHasDocBlock(doc: TextDocument, line: number) {
-        return doc.lineAt(line).text.endsWith('*/');
-    }
-
-    findConstructorRange(doc: TextDocument, line: number): Range | undefined {
-        if (! doc.lineAt(line - 1).text.endsWith('*/')) {
-            // Constructor doesn't have any docblock.
-            return doc.lineAt(line).range;
-        }
-
-        for (line; line < doc.lineCount; line--) {
-            let textLine = doc.lineAt(line).text;
-
-            if (textLine.endsWith('/**')) {
-                return doc.lineAt(line).range;
-            }
-        }
-    }
-
-    async getConstructorDocblock(range?: Range) {
-        let doc = await workspace.openTextDocument(this.activeDocument().uri);
-
-        let line = range?.start.line || 0;
-
-        let docblock = '';
-
-        for (line; line < doc.lineCount; line++) {
-            let textLine = doc.lineAt(line).text;
-
-            if (/function __construct/.test(textLine)) {
-                break;
-            }
-
-            docblock += `${textLine}\n`;
-        }
-
-        return docblock.replace(/\$/g, '\\$');
-    }
-
-    async getConstructorLine(range?: Range) {
-        let doc = await workspace.openTextDocument(this.activeDocument().uri);
-
-        let line = range?.start.line ?? 0;
-
-        for (line; line < doc.lineCount; line++) {
-            let textLine = doc.lineAt(line).text;
-
-            if (/function __construct/.test(textLine)) {
-                return { line, textLine };
-            }
-        }
     }
 
     activeEditor(): TextEditor {
@@ -284,25 +198,5 @@ export class ConstructorInserter {
         }
 
         return singleLevel.repeat(level);
-    }
-
-    getVisibilityChoice(defaultValue: string) {
-        let visibilityChoices = ['public', 'protected', 'private'];
-
-        if (visibilityChoices.indexOf(defaultValue) !== -1) {
-            visibilityChoices.splice(visibilityChoices.indexOf(defaultValue), 1);
-        }
-
-        return [defaultValue, ...visibilityChoices].join(',');
-    }
-
-    config<T>(key: string, defaultValue: T): T {
-        let config = workspace.getConfiguration('jsCopyConstructor').get<T>(key);
-
-        if (! config) {
-            return defaultValue;
-        }
-
-        return config;
     }
 }

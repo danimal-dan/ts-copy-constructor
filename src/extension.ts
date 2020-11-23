@@ -9,7 +9,7 @@ export function activate(context: vscode.ExtensionContext) {
 	let inserter = new ConstructorInserter();
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('jsCopyConstructor.insert', () => {
+        vscode.commands.registerCommand('tsCopyConstructor.insert', () => {
             if (vscode.window.activeTextEditor !== undefined) {
                 inserter.insert();
             }

@@ -1,7 +1,7 @@
 {
-  "name": "js-ts-copy-constructor-generator",
-  "displayName": "Javascript and Typescript Copy Constructor Generator",
-  "description": "Generate copy constructor for ES6 or Typescript class.",
+  "name": "ts-copy-constructor-generator",
+  "displayName": "JTypescript Copy Constructor Generator",
+  "description": "Generate copy constructor for Typescript class.",
   "version": "0.0.1",
   "engines": {
     "vscode": "^1.51.0"
@@ -10,8 +10,6 @@
     "Other"
   ],
   "keywords": [
-    "javascript",
-    "es6",
     "typescript",
     "class",
     "copy",
@@ -19,15 +17,14 @@
   ],
   "main": "./dist/extension.js",
   "activationEvents": [
-    "onLanguage:js",
     "onLanguage:ts",
-    "onCommand:jsCopyConstructor.insert"
+    "onCommand:tsCopyConstructor.insert"
   ],
   "contributes": {
     "commands": [
       {
-        "command": "jsCopyConstructor.insert",
-        "title": "JS/TS Insert Copy Constructor"
+        "command": "tsCopyConstructor.insert",
+        "title": "Insert Copy Constructor"
       }
     ]
   },
