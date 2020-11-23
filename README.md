@@ -87,7 +87,7 @@ export class Test {
 
 - [ ] Prompt to override existing constructor
 - [ ] Validate that activeEditor is a Typescript class, abort if it is not.
-- [ ] Find best insert location for constructor if cursor is in a weird place, or outside of class definition.
+- [ ] Find best insert location for constructor if cursor is in a weird place, e.g. outside of class definition.
 
 # Planned Features
 
