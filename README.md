@@ -121,7 +121,7 @@ Project is currently a WIP. It works for basic cases, but code needs to be clean
 
 ## Testing in VS Code
 
-1. Open Project in VSCode
+1. Open Project in VS Code
 2. Install dependencies - `npm i`
 3. Start `Run Extension` (defined in `launch.json`)
 4. In new `[Extension Development Host]` window, create a ts type defintion (like example above)
