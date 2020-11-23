@@ -4,7 +4,7 @@ Typescript Copy Constructor adds a command "Insert Copy Constructor" to VS Code.
 
 ## Example
 
-Given:
+**Given:**
 
 ```typescript
 import { TestEnum } from "./TestEnum";
@@ -23,7 +23,7 @@ export class Test {
 }
 ```
 
-After Command: Insert Copy Constructor
+**After `Insert Copy Constructor` Command:**
 
 ```typescript
 export class Test {
