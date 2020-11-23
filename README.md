@@ -98,6 +98,11 @@ export class Test {
   - Use case: A `moment` object, should be initialized as `opts.date = moment(opts.date);`
 - [ ] Wider Enum support
 
+## Other TODOs
+
+- [ ] Add Unit Testing
+- [ ] Prepare for Release to VS Code Marketplace
+
   - Currently, enums only work they are defined like:
 
   ```typescript
