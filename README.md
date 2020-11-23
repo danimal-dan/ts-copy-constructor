@@ -83,13 +83,13 @@ export class Test {
 }
 ```
 
-# Cases to Handle
+## Cases to Handle
 
 - [ ] Prompt to override existing constructor
 - [ ] Validate that activeEditor is a Typescript class, abort if it is not.
 - [ ] Find best insert location for constructor if cursor is in a weird place, e.g. outside of class definition.
 
-# Planned Features
+## Planned Features
 
 - [ ] Enable via Code Actions: https://github.com/microsoft/vscode-extension-samples/tree/master/code-actions-sample
 - [ ] Enable via Completions: https://github.com/microsoft/vscode-extension-samples/tree/master/completions-sample
