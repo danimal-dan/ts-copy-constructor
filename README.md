@@ -85,12 +85,17 @@ export class Test {
 
 ## Installation
 
-_Coming Soon!_
+[Typescript Copy Constructor Generator on VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=danimal-dan.ts-copy-constructor-generator)
+Lookup extension in VS Code Marketplace to install.
+
+## Usage
+
+1. In a `.ts` file with a class definition, place your cursor where you'd like the constructor to be placed. 
+2. Select `Insert Copy Constructor` from the Command Palette. (`cmd+shft+P` on Mac) 
 
 ## TODOs
 
 - [ ] Add Unit Testing
-- [ ] Prepare for Release to VS Code Marketplace
 - [ ] Prompt to override existing constructor
 - [ ] Validate that activeEditor is a Typescript class, abort if it is not.
 - [ ] Find best insert location for constructor if cursor is in a weird place, e.g. outside of class definition.
@@ -116,11 +121,11 @@ No settings yet...
 
 ## Known Issues
 
-Only works for Typescript properties. Does not handle initilization of non-optional properties that do not have a default value.
+Only works in Typescript classes. Does not handle initilization of non-optional properties that do not have a default value.
 
 ## Release Notes
 
-Project is currently a WIP. It works for basic cases, but code needs to be cleaned up and some edge-cases need to be covered.
+Project is currently in beta. It works for basic cases, but code needs to be cleaned up and some edge-cases need to be covered.
 
 ## Testing in VS Code
 
