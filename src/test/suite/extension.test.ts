@@ -43,7 +43,7 @@ suite('Extension Test Suite', function () {
 	});
 
 	test('Sample test', () => {
-		assert.notStrictEqual(textContent, testFileContent);
+		assert.notStrictEqual(textContent, testFileContent, 'Did the command run? File content was unchanged.');
 
 		const expectedTextContent = 
 		`export class TestClass {
