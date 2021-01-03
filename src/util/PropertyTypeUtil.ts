@@ -25,7 +25,7 @@ export class PropertyTypeUtil {
   }
 
   static isDeclarationEnumType(declaration: Declaration) {
-    return declaration.constructor.name === 'EnumDeclaration';
+    return declaration.hasOwnProperty('members');
   }
 
   static inferTypeFromDefaultPropertyValue(arg0: string | undefined): any {
