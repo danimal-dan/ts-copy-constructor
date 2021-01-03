@@ -2,7 +2,7 @@
   "name": "ts-copy-constructor-generator",
   "displayName": "Typescript Copy Constructor Generator",
   "description": "Generate copy constructor for Typescript class.",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "publisher": "danimal-dan",
   "repository": {
     "url": "https://github.com/danimal-dan/ts-copy-constructor"
