@@ -1,9 +1,7 @@
-import { window, workspace, Position, Range, Selection, SnippetString, TextDocument, TextEditor, Uri } from 'vscode';
+import { window, workspace, SnippetString, TextDocument, TextEditor, Uri } from 'vscode';
 import { Declarations } from './model/Declarations';
-import { PropertyTypeUtil } from './util/PropertyTypeUtil';
 import { RegexPatterns } from './model/RegexPatterns';
 import { TypescriptParser } from 'typescript-parser';
-import { PropertyType } from './model/PropertyType';
 import { IndentationSpec } from './model/IndentationSpec';
 import { ConstructorSnippetGenerator } from './generator/ConstructorSnippetGenerator';
 
@@ -39,9 +37,8 @@ export class ConstructorInserter {
 
         // EXAMPLE OF PARSING DECLARATIONS OF ACTIVE DOCUMENT
         const activeDocumentParseResult = await this.parser.parseSource(this.activeDocument().getText());
-        const cursorPosition = await this.activeEditor().selection;
 
-        const declarations = new Declarations(activeDocumentParseResult, cursorPosition);
+        const declarations = new Declarations(activeDocumentParseResult);
         
         for (const importDeclaration of activeDocumentParseResult.imports) {
             if (importDeclaration.libraryName && RegexPatterns.RELATIVE_PATH.test(importDeclaration.libraryName)) {
