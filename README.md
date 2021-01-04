@@ -95,7 +95,6 @@ Lookup extension in VS Code Marketplace to install.
 
 ## TODOs
 
-- [ ] Add Unit Testing
 - [ ] Prompt to override existing constructor
 - [ ] Validate that activeEditor is a Typescript class, abort if it is not.
 - [ ] Find best insert location for constructor if cursor is in a weird place, e.g. outside of class definition.
@@ -135,3 +134,6 @@ Project is currently in beta. It works for basic cases, but code needs to be cle
 4. In new `[Extension Development Host]` window, create a ts type defintion (like example above)
 5. Place cursor where you'd like constructor to be placed.
 6. Open command palette and select `Insert Copy Constructor`
+
+## Unit Testing
+Run `npm run test:unit`
