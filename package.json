@@ -41,7 +41,8 @@
     "test-watch": "tsc -watch -p ./",
     "pretest": "npm run test-compile && npm run lint",
     "lint": "eslint src --ext ts",
-    "test": "node ./out/test/runTest.js"
+    "test": "node ./out/test/runTest.js",
+    "test:unit": "mocha \"src/test/unit/*.ts\""
   },
   "devDependencies": {
     "@types/vscode": "^1.51.0",

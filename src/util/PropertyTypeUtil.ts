@@ -8,10 +8,6 @@ export class PropertyTypeUtil {
     return primitiveTypes.includes(type);
   }
 
-  static isObject(type: string) {
-    return type === '';
-  }
-
   static getPropertyTypeFromNamedType(namedType?: string): PropertyType {
     if (namedType === undefined || primitiveTypes.includes(namedType)) {
       return PropertyType.PRIMITIVE;

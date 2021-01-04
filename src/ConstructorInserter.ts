@@ -4,6 +4,8 @@ import { PropertyTypeUtil } from './util/PropertyTypeUtil';
 import { RegexPatterns } from './model/RegexPatterns';
 import { TypescriptParser } from 'typescript-parser';
 import { PropertyType } from './model/PropertyType';
+import { IndentationSpec } from './model/IndentationSpec';
+import { ConstructorSnippetGenerator } from './generator/ConstructorSnippetGenerator';
 
 export class ConstructorInserter {
     parser = new TypescriptParser();
@@ -65,113 +67,15 @@ export class ConstructorInserter {
     }
 
     insertConstructor(declarations: Declarations) {
-        let insertLine = this.gotoLine(declarations);
+        const indentationSpec = this.getIndentationSpec();
 
-        let snippet = '\n';
+        const snippetGenerator = new ConstructorSnippetGenerator(declarations, indentationSpec);
 
-        if (! declarations.lastPropertyLineNumber) {
-            // If no property and trait uses is found then no need to prepend a line break.
-            snippet = '';
-        }
-
-        const classDeclaration = declarations.getClassDeclaration();
-
-        snippet = this.getIndentation();
-
-        snippet += `constructor(opts?: Partial<${classDeclaration.name}>) {\n`;
-
-        classDeclaration.properties.forEach(property => {
-            let indentLevel = 2;
-            snippet += this.getIndentation(indentLevel++);
-            snippet += `if (opts?.${property.name} != null) {\n`;
-
-            const propertyType = PropertyTypeUtil.getPropertyTypeFromNamedType(property.type);
-
-            // Need different strategies here for different types
-            if (propertyType === PropertyType.PRIMITIVE) {
-                snippet += this.getIndentation(indentLevel);
-                snippet += `this.${property.name} = opts.${property.name};\n`;
-            } else if (propertyType === PropertyType.OBJECT) {
-                const objectDeclaration = declarations.importsDeclarationMap.get(property.type ?? '');
-                if (objectDeclaration === undefined) {
-                    console.info('object not imported, mapping directly to property ', property.name);
-                    snippet += this.getIndentation(indentLevel);
-                    snippet += `this.${property.name} = opts.${property.name};\n`;
-                } else if (PropertyTypeUtil.isDeclarationEnumType(objectDeclaration)) {
-                    // TODO: Check to see if enum and if the object is instatiable
-                    snippet += this.getIndentation(indentLevel++);
-                    snippet += `if (typeof opts?.${property.name} === 'string') {\n`;
-                    
-                    snippet += this.getIndentation(indentLevel);
-                    snippet += `this.${property.name} = ${property.type}[opts.${property.name}];\n`;
-
-                    snippet += this.getIndentation(--indentLevel);
-                    snippet += '} else {\n';
-
-                    snippet += this.getIndentation(++indentLevel);
-                    snippet += `this.${property.name} = opts.${property.name};\n`;
-
-                    snippet += this.getIndentation(--indentLevel);
-                    snippet += '}\n';
-                } else {
-                    snippet += this.getIndentation(indentLevel);
-                    snippet += `this.${property.name} = new ${property.type}(opts.${property.name});\n`;
-                }
-            } else if (propertyType === PropertyType.ARRAY) {
-                const arrayItemType = PropertyTypeUtil.extractItemTypeFromArrayType(property.type);
-                const arrayItemTypeDeclaration = declarations.importsDeclarationMap.get(arrayItemType ?? '');
-                if (arrayItemTypeDeclaration === undefined) {
-                    snippet += this.getIndentation(indentLevel);
-                    snippet += `this.${property.name} = [...opts.${property.name}];\n`;    
-                } else if (PropertyTypeUtil.isDeclarationEnumType(arrayItemTypeDeclaration)) {
-                    snippet += this.getIndentation(indentLevel);
-                    snippet += `this.${property.name} = opts.${property.name}.map(val => {\n`;
-                    
-                    snippet += this.getIndentation(++indentLevel);
-                    snippet += `if (typeof val === 'string') {\n`;
-                    
-                    snippet += this.getIndentation(++indentLevel);
-                    snippet += `return ${arrayItemType}[val];\n`;
-
-                    snippet += this.getIndentation(--indentLevel);
-                    snippet += '} else {\n';
-
-                    snippet += this.getIndentation(++indentLevel);
-                    snippet += `return val;\n`;
-
-                    snippet += this.getIndentation(--indentLevel);
-                    snippet += `}\n`;
-
-                    snippet += this.getIndentation(--indentLevel);
-                    snippet += '});\n';
-                } else {
-                    snippet += this.getIndentation(indentLevel);
-                    snippet += `this.${property.name} = opts.${property.name}.map(val => new ${arrayItemType}(val));\n`;
-                }
-            }
-
-            snippet += this.getIndentation(--indentLevel);
-            snippet += `}\n`;
-        });
-        
-        snippet += this.getIndentation();
-        snippet += '}';
+        const snippet = snippetGenerator.generateSnippet();
 
         this.activeEditor().insertSnippet(
             new SnippetString(snippet)
         );
-    }
-
-    gotoLine(declarations: Declarations) {
-        let insertLineNumber = declarations.cursorPosition.start.line;
-
-        let insertLine = this.activeEditor().document.lineAt(insertLineNumber);
-        this.activeEditor().revealRange(insertLine.range);
-
-        let newPosition = new Position(insertLineNumber, 0);
-        this.activeEditor().selection = new Selection(newPosition, newPosition);
-
-        return insertLine;
     }
 
     activeEditor(): TextEditor {
@@ -187,16 +91,15 @@ export class ConstructorInserter {
         return this.activeEditor().document;
     }
 
-    getIndentation(level = 1) {
-        let singleLevel;
+    /**
+     * Reads the IDE configuration to identify what type of indentation should be used.
+     */
+    getIndentationSpec(): IndentationSpec {
         let activeResource = window.activeTextEditor?.document.uri;
-
         if (!workspace.getConfiguration('editor', activeResource).get('insertSpaces')) {
-            singleLevel = '\t';
-        } else {
-            singleLevel = ' '.repeat(workspace.getConfiguration('editor', activeResource).get('tabSize') ?? 0);
+            return new IndentationSpec(false);
         }
-
-        return singleLevel.repeat(level);
+        
+        return new IndentationSpec(true, workspace.getConfiguration('editor', activeResource).get('tabSize') ?? 0);
     }
 }
