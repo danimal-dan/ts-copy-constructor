@@ -32,4 +32,54 @@ describe('ConstructorSnipperGenerator.ts', async function() {
     
     strictEqual(expectedOutput, generatedSnippet);
   });
+
+  it('should generate constructor for class with a single number property', async function() {
+
+    const sampleClass = 
+`export class TestClass {
+  number?: Number;
+}`;
+    
+    const activeDocumentParseResult = await parser.parseSource(sampleClass);
+
+    const declarations = new Declarations(activeDocumentParseResult);
+
+    const snippetGenerator = new ConstructorSnippetGenerator(declarations, twoSpacesIndentationSpec);
+
+    const generatedSnippet = snippetGenerator.generateSnippet();
+
+    const expectedOutput = 
+`  constructor(opts?: Partial<TestClass>) {
+    if (opts?.number != null) {
+      this.number = opts.number;
+    }
+  }`;
+    
+    strictEqual(expectedOutput, generatedSnippet);
+  });
+
+  it('should generate constructor for array of strings property', async function() {
+
+    const sampleClass = 
+`export class TestClass {
+  string: String[] = [];
+}`;
+    
+    const activeDocumentParseResult = await parser.parseSource(sampleClass);
+
+    const declarations = new Declarations(activeDocumentParseResult);
+
+    const snippetGenerator = new ConstructorSnippetGenerator(declarations, twoSpacesIndentationSpec);
+
+    const generatedSnippet = snippetGenerator.generateSnippet();
+
+    const expectedOutput = 
+`  constructor(opts?: Partial<TestClass>) {
+    if (opts?.string != null) {
+      this.string = [...opts.string];
+    }
+  }`;
+    
+    strictEqual(expectedOutput, generatedSnippet);
+  });
 });
