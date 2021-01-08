@@ -5,11 +5,9 @@ export class Declarations {
   activeEditorFile: File;
   importsDeclarationMap: Map<string, Declaration> = new Map();
   lastPropertyLineNumber?: number;
-  cursorPosition: Selection; 
 
-  constructor(activeEditorFile: File, cursorPosition: Selection) {
+  constructor(activeEditorFile: File) {
     this.activeEditorFile = activeEditorFile;
-    this.cursorPosition = cursorPosition;
   }
 
   getClassDeclaration(): ClassDeclaration {
