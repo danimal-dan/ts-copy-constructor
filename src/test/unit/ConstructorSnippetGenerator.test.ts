@@ -162,4 +162,46 @@ describe('ConstructorSnipperGenerator.ts', async function() {
     
     strictEqual(expectedOutput, generatedSnippet);
   });
+
+  it('should generate constructor and instantiate enum', async function() {
+
+    const sampleClass = 
+`export class TestClass {
+  testEnum: TestEnum;
+}`;
+
+    const testObjectClass = 
+`export enum TestEnum {
+  TEST_VAL = 'TEST_VAL'
+}`;
+    
+    const activeDocumentParseResult = await parser.parseSource(sampleClass);
+
+    const declarations = new Declarations(activeDocumentParseResult);
+
+    const testObjectClassDeclaration = await parser.parseSource(testObjectClass);
+
+    testObjectClassDeclaration.declarations.forEach(declaration => {
+      if (declaration.name) {
+          declarations.importsDeclarationMap.set(declaration.name, declaration);
+      }
+    });
+
+    const snippetGenerator = new ConstructorSnippetGenerator(declarations, twoSpacesIndentationSpec);
+
+    const generatedSnippet = snippetGenerator.generateSnippet();
+
+    const expectedOutput = 
+`  constructor(opts?: Partial<TestClass>) {
+    if (opts?.testEnum != null) {
+      if (typeof opts.testEnum === 'string') {
+        this.testEnum = TestEnum[opts.testEnum];
+      } else {
+        this.testEnum = opts.testEnum;
+      }
+    }
+  }`;
+    
+    strictEqual(expectedOutput, generatedSnippet);
+  });
 });

@@ -46,7 +46,7 @@ export class ConstructorSnippetGenerator {
             } else if (PropertyTypeUtil.isDeclarationEnumType(objectDeclaration)) {
                 // TODO: Check to see if enum and if the object is instatiable
                 snippet += this.indent(indentLevel++);
-                snippet += `if (typeof opts?.${property.name} === 'string') {\n`;
+                snippet += `if (typeof opts.${property.name} === 'string') {\n`;
                 
                 snippet += this.indent(indentLevel);
                 snippet += `this.${property.name} = ${property.type}[opts.${property.name}];\n`;
